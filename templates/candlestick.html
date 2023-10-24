@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candlestick and Volume Chart</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+
+    <style>
+        .candlestick, .volume {
+            fill: none;
+        }
+        .candlestick .up {
+            fill: green;
+            stroke: green;
+        }
+        .candlestick .down {
+            fill: red;
+            stroke: red;
+        }
+        .wick {
+            stroke-width: 1;
+        }
+        .wick.up {
+            stroke: green;
+        }
+        .wick.down {
+            stroke: red;
+        }
+        .volume .up {
+            fill: green;
+            stroke: green;
+        }
+        .volume .down {
+            fill: red;
+            stroke: red;
+        }
+    </style>
+</head>
+<body>
+    <svg width="1000" height="500"></svg>
+    <script>
+       // Sample data
+d3.json("/data").then(function(data) {
+    const width = 800;
+    const height = 500;
+    const margin = {top: 20, right: 50, bottom: 30, left: 50};
+
+    const svg = d3.select("body").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleBand().rangeRound([0, width]).padding(0.2);
+    const y = d3.scaleLinear().rangeRound([height, 0]);
+
+    x.domain(data.map(d => d.date));
+    y.domain([d3.min(data, d => d.low), d3.max(data, d => d.high)]);
+
+    svg.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%Y-%m-%d")))
+        .selectAll("text")
+        .attr("transform", "rotate(-45)")
+        .style("text-anchor", "end");
+
+    svg.append("g")
+        .call(d3.axisLeft(y));
+
+    const candles = svg.selectAll(".candle")
+        .data(data)
+        .enter().append("g")
+        .attr("class", d => d.open > d.close ? "candle down" : "candle up")
+        .attr("transform", d => `translate(${x(d.date)},0)`);
+
+    candles.append("line") // Wick
+        .attr("class", "wick")
+        .attr("x1", x.bandwidth() / 2)
+        .attr("x2", x.bandwidth() / 2)
+        .attr("y1", d => y(d.high))
+        .attr("y2", d => y(d.low));
+
+    candles.append("rect") // Candle body
+        .attr("x", 0)
+        .attr("y", d => y(Math.max(d.open, d.close)))
+        .attr("width", x.bandwidth())
+        .attr("height", d => Math.abs(y(d.open) - y(d.close)) || 1);
+
+    // Styles (inline for simplicity)
+    const style = `
+    .candle.up {
+      fill: green;
+      stroke: green;
+    }
+    .candle.down {
+      fill: red;
+      stroke: red;
+    }
+    .wick {
+      stroke: #000;
+    }
+    `;
+
+    const styleElement = document.createElement("style");
+    styleElement.innerHTML = style;
+    document.head.appendChild(styleElement);
+});
+    </script>
+</body>
+</html>

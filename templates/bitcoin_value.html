@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Price</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <style>
+        .line {
+            fill: none;
+            stroke: steelblue;
+            stroke-width: 2;
+        }
+    </style>
+</head>
+<body>
+    <svg width="600" height="200"></svg>
+    <script>
+        const svg = d3.select("svg"),
+              margin = { top: 20, right: 20, bottom: 30, left: 50 },
+              width = +svg.attr("width") - margin.left - margin.right,
+              height = +svg.attr("height") - margin.top - margin.bottom,
+              g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        const x = d3.scaleTime().rangeRound([0, width]),
+              y = d3.scaleLinear().rangeRound([height, 0]);
+        const line = d3.line()
+            .x(function(d) { return x(d.date); })
+            .y(function(d) { return y(d.price); });
+        const data = [];
+        function update() {
+            d3.json("/bitcoin/data").then(function(d) {
+                d.date = new Date();
+                d.price = +d.price;
+                data.push(d);
+                if (data.length > 50) data.shift();
+                x.domain(d3.extent(data, function(d) { return d.date; }));
+                y.domain([0, d3.max(data, function(d) { return d.price; })]);
+                g.selectAll("path").remove();
+                g.append("path")
+                    .datum(data)
+                    .attr("class", "line")
+                    .attr("d", line);
+            });
+        }
+        setInterval(update, 1000);
+    </script>
+</body>
+</html>

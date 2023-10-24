@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Price Moving Average</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    .line { fill: none; stroke: steelblue; stroke-width: 2; }
+    .averageLine { fill: none; stroke: red; stroke-width: 2; }
+    .axis { font-size: 12px; }
+    .axis path, .axis line { fill: none; stroke: black; shape-rendering: crispEdges; }
+    .slider-container { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <svg width="960" height="500"></svg>
+  <div class="slider-container">
+    <label for="average-slider">Moving Average Window: <span id="slider-value">5</span></label>
+    <input type="range" min="1" max="20" value="5" id="average-slider">
+  </div>
+
+  <script>
+    d3.json("/data").then(function(data) {
+
+        const svg = d3.select("svg"),
+            margin = {top: 20, right: 20, bottom: 30, left: 50},
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom,
+            g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        const x = d3.scaleTime()
+            .rangeRound([0, width]);
+
+        const y = d3.scaleLinear()
+            .rangeRound([height, 0]);
+
+        const line = d3.line()
+            .x(d => x(d.date))
+            .y(d => y(d.close));
+
+        const averageLine = d3.line()
+            .x(d => x(d.date))
+            .y(d => y(d.average));
+        console.log(averageLine)
+        x.domain(d3.extent(data, d => d.date));
+        y.domain([0, d3.max(data, d => d.close)]);
+
+        g.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x))
+            .select(".domain")
+            .remove();
+
+        g.append("g")
+            .call(d3.axisLeft(y))
+            .append("text")
+            .attr("fill", "#000")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 6)
+            .attr("dy", "0.71em")
+            .attr("text-anchor", "end")
+            .text("Price ($)");
+
+        g.append("path")
+            .datum(data)
+            .attr("class", "line")
+            .attr("d", line);
+
+        const averageData = computeMovingAverage(data, 5);
+        g.append("path")
+            .datum(averageData)
+            .attr("class", "averageLine")
+            .attr("d", averageData);
+
+        function computeMovingAverage(data, windowSize) {
+            let sum = 0;
+            return data.map((d, i, arr) => {
+                sum += d.close;
+                if (i >= windowSize) sum -= arr[i - windowSize].close;
+                return {date: d.date, average: i >= windowSize - 1 ? sum / windowSize : null};
+            });
+        }
+
+        const slider = d3.select("#average-slider");
+        const sliderValueLabel = d3.select("#slider-value");
+
+        slider.on("input", function () {
+            const windowSize = this.value;
+            sliderValueLabel.text(windowSize);
+            const updatedAverageData = computeMovingAverage(data, +windowSize);
+            g.select(".averageLine")
+                .datum(updatedAverageData)
+                .attr("d", averageData);
+        })
+    });
+  </script>
+</body>
+</html>
